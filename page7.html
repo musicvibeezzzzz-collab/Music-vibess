@@ -1,0 +1,456 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Vibe - Rock</title>
+
+  <!-- SHARED VIBE PLAYER -->
+  <script src="theme.js"></script>
+
+  <link rel="stylesheet" href="player.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+
+    <button class="backBtn" onclick="goBack()" aria-label="Go back">
+      <svg width="24" height="24" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 18l-6-6 6-6"></path>
+      </svg>
+    </button>
+
+    <div class="topTitle">
+      Vibe - <span id="topGenre">Rock</span>
+    </div>
+
+    <button class="refreshBtn" onclick="loadSongs()" aria-label="Refresh">
+      <svg width="22" height="22" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 11a8.1 8.1 0 0 0-15.5-2"></path>
+        <path d="M4 5v4h4"></path>
+        <path d="M4 13a8.1 8.1 0 0 0 15.5 2"></path>
+        <path d="M20 19v-4h-4"></path>
+      </svg>
+    </button>
+
+    <button class="menuBtn" aria-label="Menu">
+      <svg width="22" height="22" viewBox="0 0 24 24"
+        fill="currentColor">
+        <circle cx="12" cy="5" r="1.6"></circle>
+        <circle cx="12" cy="12" r="1.6"></circle>
+        <circle cx="12" cy="19" r="1.6"></circle>
+      </svg>
+    </button>
+
+  </div>
+
+
+  <!-- GENRE HEADER -->
+  <div class="genreHeader">
+    <h1 id="pageTitle">ROCK</h1>
+    <p id="pageSubtitle">Rock music</p>
+  </div>
+
+
+  <!-- SONG LIST -->
+  <div id="loading">Loading songs...</div>
+
+  <div id="songs"></div>
+
+  <div id="noSongs">
+    No songs found.
+  </div>
+
+
+  <script>
+
+    /* ================================
+       SUPABASE
+    ================================= */
+
+    const SUPABASE_URL =
+      "https://ljmqyigdesrftfphiglw.supabase.co";
+
+    const SUPABASE_KEY =
+      "sb_publishable_AMFZFIODLrc7YIF0SUAh0w_ZlQuONWn";
+
+    const supabaseClient =
+      window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
+
+
+    /* ================================
+       GENRE
+    ================================= */
+
+    const file =
+      window.location.pathname
+        .split("/")
+        .pop()
+        .toLowerCase();
+
+
+    const genres = {
+
+      "page.html": "Pop",
+      "page1.html": "Rock",
+      "page2.html": "Hip-Hop",
+      "page3.html": "Mass",
+      "page4.html": "Folk",
+      "page5.html": "Classical",
+      "page6.html": "Jazz",
+      "page7.html": "Weeknd"
+
+    };
+
+
+    const genre =
+      genres[file] || "Rock";
+
+
+    document.title =
+      "Vibe - " + genre;
+
+
+    document.getElementById("topGenre").textContent =
+      genre;
+
+    document.getElementById("pageTitle").textContent =
+      genre.toUpperCase();
+
+    document.getElementById("pageSubtitle").textContent =
+      genre + " music";
+
+    document.getElementById("noSongs").textContent =
+      "No " + genre + " songs found.";
+
+
+    /* ================================
+       VARIABLES
+    ================================= */
+
+    let songs = [];
+
+
+    const container =
+      document.getElementById("songs");
+
+    const loading =
+      document.getElementById("loading");
+
+    const noSongs =
+      document.getElementById("noSongs");
+
+
+    /* ================================
+       SONG CARD
+    ================================= */
+
+    function createSongCard(song) {
+
+      const card =
+        document.createElement("div");
+
+      card.className =
+        "songCard";
+
+
+      const cover =
+        document.createElement("img");
+
+      cover.className =
+        "songCover";
+
+      cover.src =
+        song.cover_url || "";
+
+      cover.alt =
+        song.title || "Album cover";
+
+      cover.loading =
+        "lazy";
+
+
+      cover.onerror =
+        function() {
+          this.style.background = "#222";
+        };
+
+
+      const info =
+        document.createElement("div");
+
+      info.className =
+        "songInfo";
+
+
+      const title =
+        document.createElement("div");
+
+      title.className =
+        "songTitle";
+
+      title.textContent =
+        song.title || "Unknown Song";
+
+
+      const artist =
+        document.createElement("div");
+
+      artist.className =
+        "songArtist";
+
+      artist.textContent =
+        song.artist || "Unknown Artist";
+
+
+      const play =
+        document.createElement("div");
+
+      play.className =
+        "cardPlay";
+
+      play.dataset.id =
+        String(song.id);
+
+      play.textContent =
+        "▶";
+
+
+      info.appendChild(title);
+      info.appendChild(artist);
+
+      card.appendChild(cover);
+      card.appendChild(info);
+      card.appendChild(play);
+
+
+      /* TAP CARD: OPEN SHARED PLAYER */
+
+      card.addEventListener("click", function() {
+
+        VibePlayer.play(song, songs);
+
+      });
+
+
+      /* TAP PLAY BUTTON: PLAY OR PAUSE */
+
+      play.addEventListener("click", function(event) {
+
+        event.stopPropagation();
+
+        const state =
+          VibePlayer.state();
+
+
+        if (
+          state.song &&
+          String(state.song.id) === String(song.id)
+        ) {
+
+          VibePlayer.toggle(song, songs);
+
+        } else {
+
+          VibePlayer.play(song, songs);
+
+        }
+
+      });
+
+
+      return card;
+
+    }
+
+
+    /* ================================
+       UPDATE SONG BUTTONS
+    ================================= */
+
+    function updateButtons() {
+
+      if (!window.VibePlayer) return;
+
+      const state =
+        VibePlayer.state();
+
+
+      document.querySelectorAll(".cardPlay").forEach(button => {
+
+        const isCurrent =
+          state.song &&
+          String(state.song.id) === button.dataset.id;
+
+
+        button.textContent =
+          (isCurrent && state.playing)
+            ? "❚❚"
+            : "▶";
+
+      });
+
+    }
+
+
+    /* ================================
+       PLAYER EVENT
+    ================================= */
+
+    window.addEventListener(
+      "vibeplayer",
+      updateButtons
+    );
+
+
+    /* ================================
+       LOAD SONGS
+    ================================= */
+
+    async function loadSongs() {
+
+      loading.style.display =
+        "block";
+
+      noSongs.style.display =
+        "none";
+
+      container.innerHTML =
+        "";
+
+
+      const { data, error } =
+        await supabaseClient
+
+          .from("songs")
+
+          .select("*")
+
+          .eq("genre", genre)
+
+          .order(
+            "created_at",
+            {
+              ascending: false
+            }
+          );
+
+
+      loading.style.display =
+        "none";
+
+
+      if (error) {
+
+        console.error(
+          "Supabase Error:",
+          error
+        );
+
+        noSongs.textContent =
+          "Unable to load songs. Check Supabase.";
+
+        noSongs.style.display =
+          "block";
+
+        return;
+
+      }
+
+
+      songs =
+        data || [];
+
+
+      if (songs.length === 0) {
+
+        noSongs.textContent =
+          "No " + genre + " songs found.";
+
+        noSongs.style.display =
+          "block";
+
+        return;
+
+      }
+
+
+      noSongs.style.display =
+        "none";
+
+
+      songs.forEach(song => {
+
+        container.appendChild(
+          createSongCard(song)
+        );
+
+      });
+
+
+      updateButtons();
+
+    }
+
+
+    /* ================================
+       BACK BUTTON
+    ================================= */
+
+    function goBack() {
+
+      window.location.href =
+        "Category.html";
+
+    }
+
+
+    /* ================================
+       REALTIME
+    ================================= */
+
+    supabaseClient
+
+      .channel("genre-" + genre)
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "songs"
+        },
+        function() {
+
+          loadSongs();
+
+        }
+      )
+
+      .subscribe();
+
+
+    /* ================================
+       START
+    ================================= */
+
+    loadSongs();
+
+  </script>
+
+</body>
+</html>

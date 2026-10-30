@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibe - Language</title>
+
+<script src="theme.js"></script>
+<link rel="stylesheet" href="player.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  color: white;
+  background: #080808;
+}
+
+body {
+  min-height: 100vh;
+  padding-bottom: 40px;
+  background:
+    linear-gradient(rgba(0,0,0,.3), rgba(0,0,0,.88)),
+    url("file_000000006c748211a247756d7731b785.png");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  height: 58px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #111;
+  background: rgba(255,255,255,.94);
+  backdrop-filter: blur(15px);
+}
+
+.topbar button {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #111;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+.topTitle {
+  flex: 1;
+  height: 38px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  border-radius: 11px;
+  background: #ededed;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.genreHeader {
+  min-height: 220px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(transparent, rgba(0,0,0,.9));
+}
+
+.genreHeader h1 {
+  margin: 0;
+  font-size: 45px;
+  font-weight: 800;
+}
+
+.genreHeader p {
+  margin: 7px 0 0;
+  color: rgba(255,255,255,.58);
+  font-size: 15px;
+}
+
+#loading, #noSongs {
+  padding: 30px;
+  text-align: center;
+  color: rgba(255,255,255,.65);
+}
+
+#noSongs {
+  display: none;
+}
+
+#songs {
+  padding: 0 12px 80px;
+}
+
+.songCard {
+  width: 100%;
+  min-height: 78px;
+  margin: 9px 0;
+  padding: 9px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 15px;
+  background: rgba(10,10,10,.68);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: transform .18s, background .18s;
+}
+
+.songCard:active {
+  transform: scale(.975);
+}
+
+.songCover {
+  width: 62px;
+  height: 62px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 11px;
+  background: #202020;
+}
+
+.songInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.songTitle {
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.songArtist {
+  margin-top: 5px;
+  font-size: 13px;
+  color: rgba(255,255,255,.52);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardPlay {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: white;
+  color: black;
+  font-size: 16px;
+}
+  /* FIX LIGHT THEME BACKGROUND */
+
+:root[data-theme="light"],
+:root[data-theme="light"] body {
+  background: #f4f4f4 !important;
+  background-image: none !important;
+  background-color: #f4f4f4 !important;
+}
+</style>
+</head>
+
+<body>
+
+<header class="topbar">
+  <button onclick="goBack()" aria-label="Go back">‹</button>
+  <div class="topTitle" id="topTitle">Vibe</div>
+  <button onclick="loadSongs()" aria-label="Refresh songs">↻</button>
+</header>
+
+<section class="genreHeader">
+  <h1 id="languageHeading">Telugu</h1>
+  <p id="languageSubtitle">Songs for your vibe</p>
+</section>
+
+<div id="loading">Loading songs...</div>
+<div id="noSongs">No songs found for this language.</div>
+<div id="songs"></div>
+
+<script>
+const SUPABASE_URL =
+  "https://ljmqyigdesrftfphiglw.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_AMFZFIODLrc7YIF0SUAh0w_ZlQuONWn";
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+const params = new URLSearchParams(window.location.search);
+const language = params.get("lang") || "Telugu";
+
+document.getElementById("languageHeading").textContent = language;
+document.getElementById("topTitle").textContent = language + " Songs";
+document.title = "Vibe - " + language;
+
+const songsContainer = document.getElementById("songs");
+const loading = document.getElementById("loading");
+const noSongs = document.getElementById("noSongs");
+
+let allSongs = [];
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+function createSongCard(song) {
+  const card = document.createElement("div");
+  card.className = "songCard";
+
+  const cover = song.cover_url || "";
+
+  card.innerHTML = `
+    <img class="songCover"
+         src="${escapeHTML(cover)}"
+         alt=""
+         loading="lazy">
+
+    <div class="songInfo">
+      <div class="songTitle">${escapeHTML(song.title)}</div>
+      <div class="songArtist">${escapeHTML(song.artist)}</div>
+    </div>
+
+    <div class="cardPlay" data-id="${escapeHTML(song.id)}">▶</div>
+  `;
+
+  /* tap the card: open the play card */
+  card.addEventListener("click", () => VibePlayer.play(song, allSongs));
+
+  /* small button: play / pause the current song, or play a new song and open the card */
+  card.querySelector(".cardPlay").addEventListener("click", event => {
+    event.stopPropagation();
+    const st = VibePlayer.state();
+    if (st.song && String(st.song.id) === String(song.id)) {
+      VibePlayer.toggle(song, allSongs);
+    } else {
+      VibePlayer.play(song, allSongs);
+    }
+  });
+
+  return card;
+}
+
+function updateButtons() {
+  const st = VibePlayer.state();
+
+  document.querySelectorAll(".cardPlay").forEach(button => {
+    const isCurrent = st.song && String(st.song.id) === button.dataset.id;
+    button.textContent = (isCurrent && st.playing) ? "❚❚" : "▶";
+  });
+}
+
+window.addEventListener("vibeplayer", updateButtons);
+
+async function loadSongs() {
+  loading.style.display = "block";
+  noSongs.style.display = "none";
+  songsContainer.innerHTML = "";
+
+  const { data, error } = await supabaseClient
+    .from("songs")
+    .select("*")
+    .eq("language", language)
+    .order("created_at", { ascending: false });
+
+  loading.style.display = "none";
+
+  if (error) {
+    noSongs.textContent = "Could not load songs. Please refresh.";
+    noSongs.style.display = "block";
+    console.error(error);
+    return;
+  }
+
+  allSongs = data || [];
+
+  if (allSongs.length === 0) {
+    noSongs.textContent = "No songs found for " + language + ".";
+    noSongs.style.display = "block";
+    return;
+  }
+
+  noSongs.style.display = "none";
+
+  allSongs.forEach(song => {
+    songsContainer.appendChild(createSongCard(song));
+  });
+
+  updateButtons();
+}
+
+function goBack() {
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.href = "Index.html";
+  }
+}
+
+loadSongs();
+</script>
+
+</body>
+</html>
